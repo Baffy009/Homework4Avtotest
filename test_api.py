@@ -1,41 +1,29 @@
-import smtplib
-from os.path import basename
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.application import MIMEApplication
-
-fromaddr = "testgb113@mail.ru"
-toaddr = "testgb113@mail.ru"
-mypass = "LTkQAMzizYE4zHcYgpzh"
-reportname = "log.txt"
-
-msg = MIMEMultipart()
-msg['From'] = fromaddr
-msg['To'] = toaddr
-msg['Subject'] = "Привет от питона"
-text = "Hello"
-
-msg.attach(MIMEText(text))
-
-with open(reportname, "rb") as f:
-    part = MIMEApplication(f.read(), Name=basename(reportname))
-    part['Content-Disposition'] = f'attachment; filename="{basename(reportname)}"'
-    msg.attach(part)
-
-# body = "Это пробное сообщение"
-# msg.attach(MIMEText(body, 'plain'))
-
-server = smtplib.SMTP_SSL('smtp.mail.ru', 465)
-server.login(fromaddr, mypass)
-text = msg.as_string()
-server.sendmail(fromaddr, toaddr, text)
-server.quit()
+import logging
+import requests
+import yaml
 
 
+with open('testdata.yaml', encoding='utf-8') as f:
+    data = yaml.safe_load(f)
+
+S = requests.Session()
 
 
+def test_post_create(user_login):
+    res = S.post(url=data['address_post'], headers={'X-Auth-Token': user_login},
+           data={'title': data['title'], 'description': data['description'], 'content': data['content']})
+    logging.debug(f"Response is {str(res)}")
+    assert str(res) == '<Response [200]>', 'post_create FAIL'
 
 
+def test_check_post_create(user_login):
+    result = S.get(url=data['api_address'], headers={'X-Auth-Token': user_login}).json()['data']
+    logging.debug(f"get request return: {result}")
+    list_description = [i['description'] for i in result]
+    assert data['description'] in list_description, 'check_post_create FAIL'
 
-
-
+def test_check_notme_post(user_login):
+    result = S.get(url=data['api_address'], headers={'X-Auth-Token': user_login}, params={'owner': 'notMe'}).json()['data']
+    logging.debug(f"get request return: {result}")
+    result_title = [i['title'] for i in result]
+    assert data['not_me_title'] in result_title, 'check not me post FAIL'    
